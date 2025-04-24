@@ -257,6 +257,10 @@
       const distractionPrompt = document.getElementById("distractionPrompt");
       distractionPrompt.style.display = "block"; // Show the distraction prompt
 
+      // Save the results (only valid rounds) to localStorage
+      const validRounds = clickTimes.filter((time) => time !== "False Start" && time !== "Missed");
+      saveResults(validRounds);
+
       // Handle "Yes" and "No" button clicks
       const yesButton = document.getElementById("yesButton");
       const noButton = document.getElementById("noButton");
@@ -286,11 +290,54 @@
         validTimes.length > 0
           ? Math.round(validTimes.reduce((a, b) => a + b) / validTimes.length)
           : "N/A";
+      saveResults(clickTimes); // Save the results to localStorage
       return `
         <p>Reaction times (ms): ${clickTimes.join(", ")}</p>
         <p>Average (excluding false starts and missed rounds): ${avg} ms</p>
       `;
     }
+
+    function saveResults(newRounds) {
+      // Retrieve existing results from localStorage
+      const savedResults = JSON.parse(localStorage.getItem("reactionTestResults")) || [];
+
+      // Add new rounds to the existing results
+      const updatedResults = [...savedResults, ...newRounds];
+
+      // Keep only the most recent 20 rounds
+      const trimmedResults = updatedResults.slice(-20);
+
+      // Save the updated results back to localStorage
+      localStorage.setItem("reactionTestResults", JSON.stringify(trimmedResults));
+
+      //Save the average of the last 20 rounds to localStorage
+      const average = trimmedResults.reduce((a, b) => a + b, 0) / trimmedResults.length;
+      console.log("Average of last 20 rounds:", average); // Log the average for debugging
+      localStorage.setItem("reactionTestAverage", JSON.stringify(average));
+
+      console.log("Saved results:", trimmedResults); // Log the saved results for debugging
+      console.log(typeof trimmedResults);
+    }
+
+    function getPreviousResults() {
+      // Retrieve and parse results from localStorage
+      return JSON.parse(localStorage.getItem("reactionTestResults")) || [];
+    }
+
+    function displayPreviousResults() {
+      const previousResults = getPreviousResults();
+      if (previousResults.length > 0) {
+        const previousResultsHTML = `
+          <h3>Previous Results (Last 20 Rounds)</h3>
+          <p>${previousResults.join(", ")} ms</p>
+          <p>Average of last 20 rounds: ${JSON.parse(localStorage.getItem("reactionTestAverage"))} ms</p>
+        `;
+        results.innerHTML += previousResultsHTML;
+      }
+    }
+
+    // Call this function when the page loads
+    window.onload = displayPreviousResults;
 
   </script>
 
