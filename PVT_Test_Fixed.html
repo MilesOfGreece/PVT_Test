@@ -183,11 +183,55 @@
       />
       <input
         type="text"
+        name="vablet_Time_11"
+      />
+      <input
+        type="text"
+        name="vablet_Time_12"
+      />  
+      <input
+        type="text"
+        name="vablet_Time_13"
+      />
+      <input
+        type="text"
+        name="vablet_Time_14"
+      />
+      <input
+        type="text"
+        name="vablet_Time_15"
+      />
+      <input
+        type="text"
+        name="vablet_Time_16"
+      />
+      <input
+        type="text"
+        name="vablet_Time_17"
+      />
+      <input
+        type="text"
+        name="vablet_Time_18"
+      />
+      <input
+        type="text"
+        name="vablet_Time_19"
+      />
+      <input
+        type="text"
+        name="vablet_Time_20"
+      />
+      <input
+        type="text"
         name="vablet_Time_Avg"
       />
       <input
         type="text"
         name="vablet_Distracted"
+      />
+      <input
+        type="text"
+        name="vablet_stdDev"
       />
     </form>
 
@@ -202,7 +246,7 @@
       let startTime;
       let trial = 0;
       const totalTrials = 10;
-      let timerInterval;
+      let timerInterval
       let dotVisible = false; // Track whether the dot is visible
       let trialTimeout; // Variable to store the setTimeout ID
       let roundTimeout; // Variable to store the timeout for each round
@@ -243,8 +287,8 @@
           // Set a timeout for 10 seconds to move to the next round if the user doesn't click
           roundTimeout = setTimeout(() => {
             if (dotVisible) {
-              // If the dot is still visible after 10 seconds, record a "Missed" result
-              clickTimes.push('Missed');
+              // If the dot is still visible after 10 seconds, record a "Lapse"
+              clickTimes.push('Lapse');
               message.textContent = 'You missed! Moving to the next round.';
               dot.style.display = 'none'; // Hide the dot
               stopTimer(); // Stop the timer
@@ -316,6 +360,14 @@
         }
       });
 
+      function calculateStandardDeviation(values) {
+        if (values.length === 0) return 'N/A'; // Return "N/A" if there are no values
+      
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+        return Math.sqrt(variance).toFixed(2); // Return the standard deviation rounded to 2 decimal places
+      }
+
       function endTest() {
         dot.style.display = 'none';
         timer.style.display = 'none'; // Hide the timer when the test is done
@@ -326,7 +378,6 @@
         distractionPrompt.style.display = 'block'; // Show the distraction prompt
 
         // Save the results (only valid rounds) to localStorage
-        //const validRounds = clickTimes.filter((time) => time !== "False Start" && time !== "Missed");
         saveResults(clickTimes);
 
         // Handle "Yes" and "No" button clicks
@@ -336,37 +387,66 @@
         yesButton.onclick = () => {
           localStorage.setItem('vablet_Distracted', 'Yes'); // Set distraction status to Yes
           distractionPrompt.style.display = 'none'; // Hide the prompt
-          results.innerHTML = `
-          <p>You indicated that you were distracted during the test.</p>
-          ${generateResults()}
-        `;
-          startButton.style.display = 'block'; // Show the start button again
+          showCombinedResults('Yes');
         };
 
         noButton.onclick = () => {
           localStorage.setItem('vablet_Distracted', 'No'); // Set distraction status to No
           distractionPrompt.style.display = 'none'; // Hide the prompt
-          results.innerHTML = `
-          <p>You indicated that you were not distracted during the test.</p>
-          ${generateResults()}
-        `;
-          startButton.style.display = 'block'; // Show the start button again
+          showCombinedResults('No');
         };
       }
 
+      function showCombinedResults(distractedStatus) {
+        const previousResults = getPreviousResults();
+        const average = JSON.parse(localStorage.getItem('reactionTestAverage')) || 'N/A'; // Default to "N/A" if missing
+
+        // Filter numeric values for the current test
+        const currentNumericResults = clickTimes.filter((time) => typeof time === 'number');
+        const currentStdDev = calculateStandardDeviation(currentNumericResults);
+
+        // Filter numeric values for the last 20 rounds
+        const previousNumericResults = previousResults.filter((result) => typeof result === 'number');
+        const previousStdDev = calculateStandardDeviation(previousNumericResults);
+
+        const currentResultsHTML = `
+          <h3>Current Test Results</h3>
+          <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
+          <p>Average (excluding false starts and lapses): ${
+            currentNumericResults.length > 0
+              ? Math.round(
+                  currentNumericResults.reduce((a, b) => a + b, 0) / currentNumericResults.length
+                )
+              : 'N/A'
+          } ms</p>
+          <p>Standard Deviation: ${currentStdDev} ms</p>
+          <p>Distracted: ${distractedStatus}</p>
+        `;
+
+        const previousResultsHTML = `
+          <h3>Previous Results (Last 20 Rounds)</h3>
+          <p>${previousResults.join(', ')} ms</p>
+          <p>Average of last 20 rounds: ${average} ms</p>
+          <p>Standard Deviation of last 20 rounds: ${previousStdDev} ms</p>
+        `;
+
+        results.innerHTML = currentResultsHTML + previousResultsHTML;
+        startButton.style.display = 'block'; // Show the start button again
+      }
+
       function generateResults() {
-        const validTimes = clickTimes.filter(
-          (time) => time !== 'False Start' && time !== 'Missed'
-        );
+        const validTimes = clickTimes.filter((time) => time !== 'False Start' && time !== 'Lapse');
         const avg =
           validTimes.length > 0
             ? Math.round(validTimes.reduce((a, b) => a + b) / validTimes.length)
             : 'N/A';
-        //saveResults(clickTimes); // Save the results to localStorage
+        const stdDev = calculateStandardDeviation(validTimes);
+
         return `
-        <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
-        <p>Average (excluding false starts and missed rounds): ${avg} ms</p>
-      `;
+          <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
+          <p>Average (excluding false starts and lapses): ${avg} ms</p>
+          <p>Standard Deviation: ${stdDev} ms</p>
+        `;
       }
 
       function saveResults(newRounds) {
@@ -390,28 +470,14 @@
           JSON.stringify(trimmedResults)
         );
 
-        // Calculate the average of the last 20 rounds
-        //get reactionTrimmedResults from localStorage
-        const trimmedResultsFromStorage =
-          JSON.parse(localStorage.getItem('reactionTrimmedResults')) || [];
+        // Filter out non-numeric values (e.g., "False Start" and "Lapse")
+        const numericResults = trimmedResults.filter((result) => typeof result === 'number');
 
-        //trim trimmedResultsFromStorage to only include numbers
-        const trimmedResultsOnlyNumbers = trimmedResultsFromStorage.filter(
-          (result) => typeof result === 'number'
-        );
-
-        //console.log("Trimmed results:", trimmedResultsFromStorage); // Log the trimmed results for debugging
-        //get data type of elements in trimmedResultsFromStorage
-        const dataTypes = trimmedResultsFromStorage.map(
-          (result) => typeof result
-        );
-        console.log('Data types of trimmed results:', dataTypes); // Log the data types for debugging
-
+        // Calculate the average of the numeric results
         const average =
-          trimmedResultsOnlyNumbers.length > 0
-            ? trimmedResultsOnlyNumbers.reduce((a, b) => a + b, 0) /
-              trimmedResultsOnlyNumbers.length
-            : 'N/A'; // Default to "N/A" if there are no results
+          numericResults.length > 0
+            ? Math.round(numericResults.reduce((a, b) => a + b, 0) / numericResults.length)
+            : 'N/A'; // Default to "N/A" if there are no numeric results
 
         // Save the average to localStorage
         localStorage.setItem('reactionTestAverage', JSON.stringify(average));
@@ -430,12 +496,17 @@
         const average =
           JSON.parse(localStorage.getItem('reactionTestAverage')) || 'N/A'; // Default to "N/A" if missing
 
+        // Filter numeric values for standard deviation calculation
+        const numericResults = previousResults.filter((result) => typeof result === 'number');
+        const stdDev = calculateStandardDeviation(numericResults);
+
         if (previousResults.length > 0) {
           const previousResultsHTML = `
-          <h3>Previous Results (Last 20 Rounds)</h3>
-          <p>${previousResults.join(', ')} ms</p>
-          <p>Average of last 20 rounds: ${average} ms</p>
-        `;
+            <h3>Previous Results (Last 20 Rounds)</h3>
+            <p>${previousResults.join(', ')} ms</p>
+            <p>Average of last 20 rounds: ${average} ms</p>
+            <p>Standard Deviation of last 20 rounds: ${stdDev} ms</p>
+          `;
           results.innerHTML += previousResultsHTML;
         }
       }
