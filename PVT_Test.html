@@ -258,8 +258,8 @@
       distractionPrompt.style.display = "block"; // Show the distraction prompt
 
       // Save the results (only valid rounds) to localStorage
-      const validRounds = clickTimes.filter((time) => time !== "False Start" && time !== "Missed");
-      saveResults(validRounds);
+      //const validRounds = clickTimes.filter((time) => time !== "False Start" && time !== "Missed");
+      saveResults(clickTimes);
 
       // Handle "Yes" and "No" button clicks
       const yesButton = document.getElementById("yesButton");
@@ -290,7 +290,7 @@
         validTimes.length > 0
           ? Math.round(validTimes.reduce((a, b) => a + b) / validTimes.length)
           : "N/A";
-      saveResults(clickTimes); // Save the results to localStorage
+      //saveResults(clickTimes); // Save the results to localStorage
       return `
         <p>Reaction times (ms): ${clickTimes.join(", ")}</p>
         <p>Average (excluding false starts and missed rounds): ${avg} ms</p>
@@ -306,17 +306,35 @@
 
       // Keep only the most recent 20 rounds
       const trimmedResults = updatedResults.slice(-20);
+      localStorage.setItem("reactionTrimmedResults", JSON.stringify(trimmedResults));
 
       // Save the updated results back to localStorage
       localStorage.setItem("reactionTestResults", JSON.stringify(trimmedResults));
 
-      //Save the average of the last 20 rounds to localStorage
-      const average = trimmedResults.reduce((a, b) => a + b, 0) / trimmedResults.length;
-      console.log("Average of last 20 rounds:", average); // Log the average for debugging
+      // Calculate the average of the last 20 rounds
+      //get reactionTrimmedResults from localStorage
+      const trimmedResultsFromStorage = JSON.parse(localStorage.getItem("reactionTrimmedResults")) || [];
+
+      //trim trimmedResultsFromStorage to only include numbers
+      const trimmedResultsOnlyNumbers = trimmedResultsFromStorage.filter((result) => typeof result === "number");
+
+      //console.log("Trimmed results:", trimmedResultsFromStorage); // Log the trimmed results for debugging
+      //get data type of elements in trimmedResultsFromStorage
+      const dataTypes = trimmedResultsFromStorage.map((result) => typeof result);
+      console.log("Data types of trimmed results:", dataTypes); // Log the data types for debugging
+
+      const average =
+        trimmedResultsOnlyNumbers.length > 0
+          ? trimmedResultsOnlyNumbers.reduce((a, b) => a + b, 0) / trimmedResultsOnlyNumbers.length
+          : "N/A"; // Default to "N/A" if there are no results
+
+      
+
+      // Save the average to localStorage
       localStorage.setItem("reactionTestAverage", JSON.stringify(average));
 
       console.log("Saved results:", trimmedResults); // Log the saved results for debugging
-      console.log(typeof trimmedResults);
+      console.log("Average of last 20 rounds:", average); // Log the average for debugging
     }
 
     function getPreviousResults() {
@@ -326,13 +344,37 @@
 
     function displayPreviousResults() {
       const previousResults = getPreviousResults();
+      const average = JSON.parse(localStorage.getItem("reactionTestAverage")) || "N/A"; // Default to "N/A" if missing
+
       if (previousResults.length > 0) {
         const previousResultsHTML = `
           <h3>Previous Results (Last 20 Rounds)</h3>
           <p>${previousResults.join(", ")} ms</p>
-          <p>Average of last 20 rounds: ${JSON.parse(localStorage.getItem("reactionTestAverage"))} ms</p>
+          <p>Average of last 20 rounds: ${average} ms</p>
         `;
         results.innerHTML += previousResultsHTML;
+      }
+    }
+
+    function sendScore() {
+      // Retrieve the average from localStorage
+      const average = JSON.parse(localStorage.getItem("reactionTestAverage")) || 0; // Default to 0 if missing
+
+      // Set the average as the score in the form
+      document.getElementById('vablet_Score').value = average;
+
+      try {
+        // Submit the form as a survey
+        VabletFormTools.sendFormAsSurvey('CaptureForm', () => {
+          console.log('Form submitted with average score:', average);
+
+          // Close the file using VabletNativeInterface
+          VabletNativeInterface.callNativeMethod('CloseFile', {
+            fileId: currentVabletFileInfo.fileId,
+          });
+        });
+      } catch (error) {
+        console.log('Error: ', error);
       }
     }
 

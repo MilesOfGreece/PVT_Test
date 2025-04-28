@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Reaction Time Test</title>
+    <style>
+      /* Reset basic styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: sans-serif;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Center horizontally */
+        height: 100vh; /* Full viewport height */
+        margin: 0;
+      }
+
+      #message {
+        font-size: 48px; /* Adjusted font size for better readability */
+        margin-top: 40px; /* Add spacing from the top */
+        margin-bottom: 40px; /* Add spacing below the message */
+      }
+
+      #results {
+        margin-top: 20px;
+        font-size: 36px;
+      }
+
+      #timer {
+        font-size: 36px;
+        margin-top: 20px;
+        display: none;
+      }
+
+      #startButton {
+        display: block;
+        margin: 20px auto;
+        padding: 15px 30px;
+        font-size: 18px;
+        cursor: pointer;
+      }
+
+      #dot {
+        width: 150px; /* Size of the dot */
+        height: 150px;
+        background-color: red;
+        border-radius: 50%;
+        display: none;
+        cursor: pointer;
+        position: absolute;
+        top: 35%; /* Adjusted to move the dot further up */
+        left: 50%; /* Center horizontally */
+        transform: translate(-50%, -50%); /* Adjust for element size */
+      }
+
+      #distractionPrompt {
+        font-size: 36px; /* Match the size of other large text */
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      #distractionPrompt button {
+        font-size: 24px; /* Match the size of other buttons */
+        padding: 15px 30px; /* Add padding for larger buttons */
+        margin: 10px; /* Add spacing between buttons */
+        cursor: pointer;
+      }
+
+      /* Media query for smaller screens (e.g., mobile devices) */
+      @media (max-width: 600px) {
+        #message {
+          font-size: 32px;
+          margin-top: 20px; /* Adjust spacing for smaller screens */
+          margin-bottom: 20px;
+        }
+
+        #results {
+          font-size: 28px;
+        }
+
+        #timer {
+          font-size: 20px;
+        }
+
+        #startButton {
+          padding: 10px 20px;
+          font-size: 24px;
+        }
+
+        #dot {
+          width: 120px; /* Slightly smaller size for mobile */
+          height: 120px;
+          top: 30%; /* Adjust position for smaller screens */
+        }
+
+        #distractionPrompt {
+          font-size: 28px; /* Adjust text size for smaller screens */
+        }
+
+        #distractionPrompt button {
+          font-size: 20px; /* Adjust button size for smaller screens */
+          padding: 10px 20px; /* Adjust padding for smaller buttons */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="message">
+      Wait for the red dot and tap it with your dominant finger when it appears.
+      You'll do this 10 times.
+    </div>
+    <button
+      id="startButton"
+      onclick="startTest()"
+    >
+      Start Test
+    </button>
+    <div id="timer">Time: 0 ms</div>
+    <div id="dot"></div>
+    <div id="results"></div>
+    <div
+      id="distractionPrompt"
+      style="display: none"
+    >
+      <p>Were you distracted during the test?</p>
+      <button id="yesButton">Yes</button>
+      <button id="noButton">No</button>
+    </div>
+
+    <form
+      id="CaptureForm"
+      style="display: none"
+    >
+      <input
+        type="text"
+        name="vablet_Time_1"
+      />
+      <input
+        type="text"
+        name="vablet_Time_2"
+      />
+      <input
+        type="text"
+        name="vablet_Time_3"
+      />
+      <input
+        type="text"
+        name="vablet_Time_4"
+      />
+      <input
+        type="text"
+        name="vablet_Time_5"
+      />
+      <input
+        type="text"
+        name="vablet_Time_6"
+      />
+      <input
+        type="text"
+        name="vablet_Time_7"
+      />
+      <input
+        type="text"
+        name="vablet_Time_8"
+      />
+      <input
+        type="text"
+        name="vablet_Time_9"
+      />
+      <input
+        type="text"
+        name="vablet_Time_10"
+      />
+      <input
+        type="text"
+        name="vablet_Time_Avg"
+      />
+      <input
+        type="text"
+        name="vablet_Distracted"
+      />
+    </form>
+
+    <script>
+      const dot = document.getElementById('dot');
+      const message = document.getElementById('message');
+      const results = document.getElementById('results');
+      const startButton = document.getElementById('startButton');
+      const timer = document.getElementById('timer');
+
+      let clickTimes = [];
+      let startTime;
+      let trial = 0;
+      const totalTrials = 10;
+      let timerInterval;
+      let dotVisible = false; // Track whether the dot is visible
+      let trialTimeout; // Variable to store the setTimeout ID
+      let roundTimeout; // Variable to store the timeout for each round
+      let testInProgress = false; // Track whether the test is in progress
+
+      function startTest() {
+        trial = 0;
+        clickTimes = [];
+        results.innerHTML = '';
+        startButton.style.display = 'none'; // Hide the start button
+        testInProgress = true; // Set the test as in progress
+        nextTrial();
+      }
+
+      function nextTrial() {
+        dot.style.display = 'none';
+        timer.style.display = 'none'; // Hide the timer initially
+        message.textContent = 'Wait for it...'; // Reset the message
+        dotVisible = false; // Reset visibility flag
+
+        // Clear any existing timeouts to prevent overlapping trials
+        if (trialTimeout) {
+          clearTimeout(trialTimeout);
+        }
+        if (roundTimeout) {
+          clearTimeout(roundTimeout);
+        }
+
+        const delay = 2000 + Math.random() * 6000; // 2 to 8 seconds
+        trialTimeout = setTimeout(() => {
+          dot.style.display = 'block'; // Show the dot
+          timer.style.display = 'block'; // Show the timer
+          message.textContent = 'Tap Now!'; // Update the message when the dot appears
+          startTime = Date.now();
+          dotVisible = true; // Set visibility flag to true
+          startTimer();
+
+          // Set a timeout for 10 seconds to move to the next round if the user doesn't click
+          roundTimeout = setTimeout(() => {
+            if (dotVisible) {
+              // If the dot is still visible after 10 seconds, record a "Missed" result
+              clickTimes.push('Missed');
+              message.textContent = 'You missed! Moving to the next round.';
+              dot.style.display = 'none'; // Hide the dot
+              stopTimer(); // Stop the timer
+              trial++;
+              if (trial < totalTrials) {
+                setTimeout(nextTrial, 2000); // Wait 2 seconds before starting the next trial
+              } else {
+                endTest();
+              }
+            }
+          }, 10000); // 10-second timeout
+        }, delay);
+      }
+
+      function startTimer() {
+        timerInterval = setInterval(() => {
+          const elapsedTime = Date.now() - startTime;
+          timer.textContent = `Time: ${elapsedTime} ms`;
+        }, 10); // Update every 10 milliseconds
+      }
+
+      function stopTimer() {
+        clearInterval(timerInterval);
+        if (roundTimeout) {
+          clearTimeout(roundTimeout); // Clear the round timeout if the user clicks the dot
+        }
+      }
+
+      document.addEventListener('click', (event) => {
+        // Ignore clicks if the test is not in progress
+        if (!testInProgress) {
+          message.textContent =
+            "Test finished! Click 'Start Test' to try again.";
+          return;
+        }
+
+        // Ignore clicks on the "Start Test" button
+        if (event.target === startButton) {
+          return;
+        }
+
+        if (!dotVisible) {
+          // False start: user clicked before the dot appeared
+          message.textContent = 'False Start! Try again.';
+          clickTimes.push('False Start'); // Record "False Start" as the result
+          trial++;
+
+          // Clear the timeout to prevent the dot from appearing
+          if (trialTimeout) {
+            clearTimeout(trialTimeout);
+          }
+
+          if (trial < totalTrials) {
+            setTimeout(nextTrial, 2000); // Wait 2 seconds before starting the next trial
+          } else {
+            endTest();
+          }
+          return;
+        }
+
+        const rt = Date.now() - startTime;
+        clickTimes.push(rt);
+        stopTimer(); // Stop the timer when the dot is clicked
+        trial++;
+        if (trial < totalTrials) {
+          nextTrial();
+        } else {
+          endTest();
+        }
+      });
+
+      function endTest() {
+        dot.style.display = 'none';
+        timer.style.display = 'none'; // Hide the timer when the test is done
+        message.textContent = 'Test finished!';
+        testInProgress = false; // Set the test as not in progress
+        startButton.style.display = 'none'; // Hide the start button
+        const distractionPrompt = document.getElementById('distractionPrompt');
+        distractionPrompt.style.display = 'block'; // Show the distraction prompt
+
+        // Save the results (only valid rounds) to localStorage
+        //const validRounds = clickTimes.filter((time) => time !== "False Start" && time !== "Missed");
+        saveResults(clickTimes);
+
+        // Handle "Yes" and "No" button clicks
+        const yesButton = document.getElementById('yesButton');
+        const noButton = document.getElementById('noButton');
+
+        yesButton.onclick = () => {
+          localStorage.setItem('vablet_Distracted', 'Yes'); // Set distraction status to Yes
+          distractionPrompt.style.display = 'none'; // Hide the prompt
+          results.innerHTML = `
+          <p>You indicated that you were distracted during the test.</p>
+          ${generateResults()}
+        `;
+          startButton.style.display = 'block'; // Show the start button again
+        };
+
+        noButton.onclick = () => {
+          localStorage.setItem('vablet_Distracted', 'No'); // Set distraction status to No
+          distractionPrompt.style.display = 'none'; // Hide the prompt
+          results.innerHTML = `
+          <p>You indicated that you were not distracted during the test.</p>
+          ${generateResults()}
+        `;
+          startButton.style.display = 'block'; // Show the start button again
+        };
+      }
+
+      function generateResults() {
+        const validTimes = clickTimes.filter(
+          (time) => time !== 'False Start' && time !== 'Missed'
+        );
+        const avg =
+          validTimes.length > 0
+            ? Math.round(validTimes.reduce((a, b) => a + b) / validTimes.length)
+            : 'N/A';
+        //saveResults(clickTimes); // Save the results to localStorage
+        return `
+        <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
+        <p>Average (excluding false starts and missed rounds): ${avg} ms</p>
+      `;
+      }
+
+      function saveResults(newRounds) {
+        // Retrieve existing results from localStorage
+        const savedResults =
+          JSON.parse(localStorage.getItem('reactionTestResults')) || [];
+
+        // Add new rounds to the existing results
+        const updatedResults = [...savedResults, ...newRounds];
+
+        // Keep only the most recent 20 rounds
+        const trimmedResults = updatedResults.slice(-20);
+        localStorage.setItem(
+          'reactionTrimmedResults',
+          JSON.stringify(trimmedResults)
+        );
+
+        // Save the updated results back to localStorage
+        localStorage.setItem(
+          'reactionTestResults',
+          JSON.stringify(trimmedResults)
+        );
+
+        // Calculate the average of the last 20 rounds
+        //get reactionTrimmedResults from localStorage
+        const trimmedResultsFromStorage =
+          JSON.parse(localStorage.getItem('reactionTrimmedResults')) || [];
+
+        //trim trimmedResultsFromStorage to only include numbers
+        const trimmedResultsOnlyNumbers = trimmedResultsFromStorage.filter(
+          (result) => typeof result === 'number'
+        );
+
+        //console.log("Trimmed results:", trimmedResultsFromStorage); // Log the trimmed results for debugging
+        //get data type of elements in trimmedResultsFromStorage
+        const dataTypes = trimmedResultsFromStorage.map(
+          (result) => typeof result
+        );
+        console.log('Data types of trimmed results:', dataTypes); // Log the data types for debugging
+
+        const average =
+          trimmedResultsOnlyNumbers.length > 0
+            ? trimmedResultsOnlyNumbers.reduce((a, b) => a + b, 0) /
+              trimmedResultsOnlyNumbers.length
+            : 'N/A'; // Default to "N/A" if there are no results
+
+        // Save the average to localStorage
+        localStorage.setItem('reactionTestAverage', JSON.stringify(average));
+
+        console.log('Saved results:', trimmedResults); // Log the saved results for debugging
+        console.log('Average of last 20 rounds:', average); // Log the average for debugging
+      }
+
+      function getPreviousResults() {
+        // Retrieve and parse results from localStorage
+        return JSON.parse(localStorage.getItem('reactionTestResults')) || [];
+      }
+
+      function displayPreviousResults() {
+        const previousResults = getPreviousResults();
+        const average =
+          JSON.parse(localStorage.getItem('reactionTestAverage')) || 'N/A'; // Default to "N/A" if missing
+
+        if (previousResults.length > 0) {
+          const previousResultsHTML = `
+          <h3>Previous Results (Last 20 Rounds)</h3>
+          <p>${previousResults.join(', ')} ms</p>
+          <p>Average of last 20 rounds: ${average} ms</p>
+        `;
+          results.innerHTML += previousResultsHTML;
+        }
+      }
+
+      function assignScoresToInputs() {
+        // Retrieve the last 20 rounds from localStorage
+        const trimmedResults = JSON.parse(
+          localStorage.getItem('reactionTrimmedResults')
+        );
+
+        // Assign scores to the form inputs
+        for (let i = 0; i < trimmedResults.length; i++) {
+          document.querySelector(`input[name="vablet_Time_${i + 1}"]`).value =
+            trimmedResults[i];
+        }
+
+        // Set the average score in the form
+        const average =
+          JSON.parse(localStorage.getItem('reactionTestAverage')) || 0; // Default to 0 if missing
+        document.querySelector('input[name="vablet_Time_Avg"]').value = average;
+        // Set the distraction status in the form
+        document.querySelector('input[name="vablet_Distracted"]').value =
+          localStorage.getItem('vablet_Distracted');
+      }
+
+      function sendScore() {
+        assignScoresToInputs(); // Assign scores to the form inputs
+
+        try {
+          // Submit the form as a survey
+          VabletFormTools.sendFormAsSurvey('CaptureForm', () => {
+            console.log('Form submitted with average score:', average);
+
+            // Close the file using VabletNativeInterface
+            VabletNativeInterface.callNativeMethod('CloseFile', {
+              fileId: currentVabletFileInfo.fileId,
+            });
+          });
+        } catch (error) {
+          console.log('Error: ', error);
+        }
+      }
+
+      // Call this function when the page loads
+      window.onload = displayPreviousResults;
+    </script>
+  </body>
+</html>
