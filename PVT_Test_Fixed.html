@@ -231,7 +231,19 @@
       />
       <input
         type="text"
-        name="vablet_stdDev"
+        name="vablet_stdDev_1"
+      />
+      <input
+        type="text"
+        name="vablet_stdDev_2"
+      />
+      <input
+        type="text"
+        name="vablet_Score"
+      />
+      <input
+        type="text"
+        name="vablet_Score_2"
       />
     </form>
 
@@ -409,18 +421,41 @@
         const previousNumericResults = previousResults.filter((result) => typeof result === 'number');
         const previousStdDev = calculateStandardDeviation(previousNumericResults);
 
+        // Calculate the score
+        const avgRT =
+          currentNumericResults.length > 0
+            ? Math.round(
+                currentNumericResults.reduce((a, b) => a + b, 0) / currentNumericResults.length
+              )
+            : 0;
+        const lapses = clickTimes.filter((time) => time === 'Lapse').length;
+        const falseStarts = clickTimes.filter((time) => time === 'False Start').length;
+        const rtStdDev = parseFloat(currentStdDev) || 0;
+
+        const score = Math.round(avgRT * 0.3 + lapses * 10 + falseStarts * 5 + rtStdDev * 0.2);
+
+        // Determine status and color based on the score
+        let status = '';
+        let color = '';
+
+        if (score <= 140) {
+          status = 'Normal Alertness';
+          color = 'green';
+        } else if (score <= 180) {
+          status = 'Mild Impairment';
+          color = 'orange';
+        } else {
+          status = 'High Impairment';
+          color = 'red';
+        }
+
         const currentResultsHTML = `
           <h3>Current Test Results</h3>
           <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
-          <p>Average (excluding false starts and lapses): ${
-            currentNumericResults.length > 0
-              ? Math.round(
-                  currentNumericResults.reduce((a, b) => a + b, 0) / currentNumericResults.length
-                )
-              : 'N/A'
-          } ms</p>
+          <p>Average (excluding false starts and lapses): ${avgRT} ms</p>
           <p>Standard Deviation: ${currentStdDev} ms</p>
           <p>Distracted: ${distractedStatus}</p>
+          <p style="color: ${color}; font-weight: bold;">Score: ${score} (${status})</p>
         `;
 
         const previousResultsHTML = `
@@ -479,11 +514,57 @@
             ? Math.round(numericResults.reduce((a, b) => a + b, 0) / numericResults.length)
             : 'N/A'; // Default to "N/A" if there are no numeric results
 
+        averageLast10 = numericResults.slice(-10); // Get the last 10 rounds for average calculation
+        const averageLast10Value =
+          averageLast10.length > 0
+            ? Math.round(averageLast10.reduce((a, b) => a + b, 0) / averageLast10.length)
+            : 'N/A'; // Default to "N/A" if there are no numeric results
+        // Save the average of the last 10 rounds to localStorage
+        localStorage.setItem('reactionTestAverageLast10', JSON.stringify(averageLast10Value));
+
         // Save the average to localStorage
         localStorage.setItem('reactionTestAverage', JSON.stringify(average));
 
+        // Calculate the standard deviation
+        const stdDev = calculateStandardDeviation(averageLast10);
+
+        // Save the standard deviations to localStorage
+        if (JSON.parse(localStorage.getItem('vablet_stdDev_1')) === null) {
+          console.log('No previous standard deviation found. Saving the first one.');
+          localStorage.setItem('vablet_stdDev_1', stdDev);
+        } else {
+          console.log('Previous standard deviation found. Saving the second one.');
+          const oldStdDev = JSON.parse(localStorage.getItem('vablet_stdDev_1'))
+          localStorage.setItem('vablet_stdDev_2', oldStdDev);
+          localStorage.setItem('vablet_stdDev_1', stdDev);
+          console.log('Previous standard deviation:', oldStdDev);
+          console.log('Current standard deviation:', stdDev);
+        }
+
+        // // Save the standard deviation to localStorage
+        // localStorage.setItem('vablet_stdDev_1', stdDev);
+
+        // Calculate the score
+        const lapses = newRounds.filter((time) => time === 'Lapse').length;
+        const falseStarts = newRounds.filter((time) => time === 'False Start').length;
+        const score = Math.round(averageLast10Value * 0.3 + lapses * 10 + falseStarts * 5 + stdDev * 0.2);
+
+        // Save the score to localStorage
+        const savedScores = JSON.parse(localStorage.getItem('reactionTestScores')) || [];
+        const updatedScores = [...savedScores, score].slice(-2); // Keep only the last 2 scores
+        localStorage.setItem('reactionTestScores', JSON.stringify(updatedScores));
+
+        // Save the most recent score and standard deviation to their respective Vablet entries
+        localStorage.setItem('vablet_Score', score);
+        if (updatedScores.length > 1) {
+          localStorage.setItem('vablet_Score_2', updatedScores[updatedScores.length - 2]);
+        }
+        //localStorage.setItem('vablet_stdDev_2', stdDev);
+
         console.log('Saved results:', trimmedResults); // Log the saved results for debugging
         console.log('Average of last 20 rounds:', average); // Log the average for debugging
+        console.log('Saved scores:', updatedScores); // Log the saved scores for debugging
+        console.log('Saved standard deviations:', stdDev); // Log the standard deviation for debugging
       }
 
       function getPreviousResults() {
@@ -500,12 +581,19 @@
         const numericResults = previousResults.filter((result) => typeof result === 'number');
         const stdDev = calculateStandardDeviation(numericResults);
 
+        // Retrieve the last two scores
+        const savedScores = JSON.parse(localStorage.getItem('reactionTestScores')) || [];
+
+        const lastTwoScores = savedScores.slice(-2); // Get the last two scores
+
         if (previousResults.length > 0) {
           const previousResultsHTML = `
             <h3>Previous Results (Last 20 Rounds)</h3>
             <p>${previousResults.join(', ')} ms</p>
             <p>Average of last 20 rounds: ${average} ms</p>
             <p>Standard Deviation of last 20 rounds: ${stdDev} ms</p>
+            <h3>Last Two Scores</h3>
+            ${lasttwoScores.length > 0 ? `<p>${lastTwoScores.join(', ')}</p>` : '<p>No scores available</p>'}
           `;
           results.innerHTML += previousResultsHTML;
         }
