@@ -27,7 +27,7 @@
 
       #message {
         font-size: 48px; /* Adjusted font size for better readability */
-        margin-top: 70px; /* Push the text down by 100px (original margin-top was 40px) */
+        margin-top: 20px; /* Move the "Tap Now" message up by 50px (original margin-top was 70px) */
         margin-bottom: 40px; /* Add spacing below the message */
       }
 
@@ -38,16 +38,8 @@
 
       #timer {
         font-size: 36px;
-        margin-top: 20px;
+        margin-top: 0px; /* Move the timer up by 50px (original margin-top was 20px) */
         display: none;
-      }
-
-      #startButton {
-        display: block;
-        margin: 20px auto;
-        padding: 15px 30px;
-        font-size: 18px;
-        cursor: pointer;
       }
 
       #dot {
@@ -76,6 +68,32 @@
         cursor: pointer;
       }
 
+      #buttonContainer {
+        display: flex;
+        justify-content: center; /* Center the buttons horizontally */
+        gap: 20px; /* Add spacing between the buttons */
+        margin-top: 20px; /* Add some margin above the buttons */
+      }
+
+      #startButton,
+      #resetButton {
+        padding: 15px 30px;
+        font-size: 18px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+      }
+
+      #startButton {
+        background-color: #4caf50; /* Green background */
+        color: white; /* White text */
+      }
+
+      #resetButton {
+        background-color: #f44336; /* Red background */
+        color: white; /* White text */
+      }
+
       /* Media query for smaller screens (e.g., mobile devices) */
       @media (max-width: 600px) {
         body {
@@ -84,7 +102,7 @@
 
         #message {
           font-size: 24px; /* Make the text smaller */
-          margin-top: 55px; /* Push the text down by 100px for mobile (original margin-top was 10px) */
+          margin-top: 25px; /* Push the text down by 100px for mobile (original margin-top was 10px) */
           margin-bottom: 10px;
         }
 
@@ -93,6 +111,7 @@
         }
 
         #timer {
+          margin-top: 20px;
           font-size: 18px; /* Make the timer text smaller */
         }
 
@@ -104,7 +123,7 @@
         #dot {
           width: 100px; /* Slightly smaller size for mobile */
           height: 100px;
-          top: calc(30% + 200px); /* Move the dot down by 200px */
+          top: calc(30% + 100px); /* Move the dot down by 200px */
         }
 
         #distractionPrompt {
@@ -116,6 +135,21 @@
           padding: 8px 16px; /* Adjust padding for smaller buttons */
         }
       }
+
+      /* Media query for iPhone 14 Pro Max (screen width: 430px) */
+      @media (max-width: 430px) {
+        #dot {
+          top: 20%; /* Move the red dot closer to the top */
+        }
+
+        #message {
+          margin-top: 10px; /* Move the "Tap Now" message closer to the top */
+        }
+
+        #timer {
+          margin-top: 5px; /* Move the timer closer to the top */
+        }
+      }
     </style>
   </head>
   <body>
@@ -123,12 +157,15 @@
       Wait for the red dot and tap it with your dominant finger when it appears.
       You'll do this 10 times.
     </div>
-    <button
-      id="startButton"
-      onclick="startTest()"
-    >
-      Start Test
-    </button>
+    <div id="buttonContainer">
+      <button
+        id="startButton"
+        onclick="startTest()"
+      >
+        Start Test
+      </button>
+      <button id="resetButton" onclick="resetLocalStorage()">Reset Data</button>
+    </div>
     <div id="timer">Time: 0 ms</div>
     <div id="dot"></div>
     <div id="results"></div>
@@ -269,6 +306,7 @@
       let testInProgress = false; // Track whether the test is in progress
 
       function startTest() {
+        document.getElementById('resetButton').style.display = 'none'; // Hide the reset button
         trial = 0;
         clickTimes = [];
         results.innerHTML = '';
@@ -296,7 +334,7 @@
           dot.style.display = 'block'; // Show the dot
           timer.style.display = 'block'; // Show the timer
           message.textContent = 'Tap Now!'; // Update the message when the dot appears
-          startTime = Date.now();
+          startTime = performance.now(); // CHANGED HERE
           dotVisible = true; // Set visibility flag to true
           startTimer();
 
@@ -321,8 +359,8 @@
 
       function startTimer() {
         timerInterval = setInterval(() => {
-          const elapsedTime = Date.now() - startTime;
-          timer.textContent = `Time: ${elapsedTime} ms`;
+          const elapsedTime = performance.now() - startTime; // CHANGED HERE
+          timer.textContent = `Time: ${elapsedTime.toFixed(0)} ms`;
         }, 10); // Update every 10 milliseconds
       }
 
@@ -365,7 +403,7 @@
           return;
         }
 
-        const rt = Date.now() - startTime;
+        const rt = performance.now() - startTime; // CHANGED HERE
         clickTimes.push(rt);
         stopTimer(); // Stop the timer when the dot is clicked
         trial++;
@@ -433,12 +471,17 @@
             ? Math.round(
                 currentNumericResults.reduce((a, b) => a + b, 0) / currentNumericResults.length
               )
-            : 0;
+            : "N/A";
         const lapses = clickTimes.filter((time) => typeof time === 'number' && time >= 600).length;
         const falseStarts = clickTimes.filter((time) => time === 'False Start').length;
         const rtStdDev = parseFloat(currentStdDev) || 0;
+        let score;
 
-        const score = Math.round(avgRT * 0.3 + lapses * 10 + falseStarts * 5 + rtStdDev * 0.2);
+        if (avgRT == "N/A") {
+          score = "Fail"
+        } else {
+          score = Math.round(avgRT * 0.3 + lapses * 10 + falseStarts * 5 + rtStdDev * 0.2);
+        }
 
         // Determine status and color based on the score
         let status = '';
@@ -450,14 +493,17 @@
         } else if (score <= 180) {
           status = 'Mild Impairment';
           color = 'orange';
-        } else {
+        } else if (score != "Fail") {
           status = 'High Impairment';
+          color = 'red';
+        } else {
+          status = "Failed test! No rounds completed."
           color = 'red';
         }
 
         const currentResultsHTML = `
           <h3>Current Test Results</h3>
-          <p>Reaction times (ms): ${clickTimes.join(', ')}</p>
+          <p>Reaction times (ms): ${clickTimes.map(r => typeof r === 'number' ? Math.round(r) : r).join(', ')}</p>
           <p>Average (excluding false starts and timeouts): ${avgRT} ms</p>
           <p>Standard Deviation: ${currentStdDev} ms</p>
           <p>Distracted: ${distractedStatus}</p>
@@ -466,7 +512,9 @@
 
         const previousResultsHTML = `
           <h3>Previous Results (Last 20 Rounds)</h3>
-          <p>${previousResults.join(', ')} ms</p>
+          <p>${
+  previousResults.map(r => typeof r === 'number' ? Math.round(r) : r).join(', ')
+} ms</p>
           <p>Average of last 20 rounds: ${average} ms</p>
           <p>Standard Deviation of last 20 rounds: ${previousStdDev} ms</p>
         `;
@@ -479,7 +527,7 @@
         const validTimes = clickTimes.filter((time) => time !== 'False Start' && time !== 'Timeout');
         const avg =
           validTimes.length > 0
-            ? Math.round(validTimes.reduce((a, b) => a + b) / validTimes.length)
+            ? Math.round(validTimes.reduce((a, b) => a + b, 0) / validTimes.length)
             : 'N/A';
         const stdDev = calculateStandardDeviation(validTimes);
 
@@ -536,39 +584,33 @@
         const stdDev = calculateStandardDeviation(averageLast10Numeric);
 
         // Save the standard deviations to localStorage
-        if (JSON.parse(localStorage.getItem('vablet_stdDev_1')) === null) {
-          console.log('No previous standard deviation found. Saving the first one.');
-          localStorage.setItem('vablet_stdDev_1', stdDev);
-        } else {
-          console.log('Previous standard deviation found. Saving the second one.');
-          const oldStdDev = JSON.parse(localStorage.getItem('vablet_stdDev_1'))
-          localStorage.setItem('vablet_stdDev_2', oldStdDev);
-          localStorage.setItem('vablet_stdDev_1', stdDev);
-          console.log('Previous standard deviation:', oldStdDev);
-          console.log('Current standard deviation:', stdDev);
-        }
+        const stdDev1 = localStorage.getItem('vablet_stdDev_1');
+        const oldStdDev = stdDev1 && stdDev1 !== "N/A" ? JSON.parse(stdDev1) : "N/A";
 
-
-
-        // // Save the standard deviation to localStorage
-        // localStorage.setItem('vablet_stdDev_1', stdDev);
+        localStorage.setItem('vablet_stdDev_2', oldStdDev); // Save the previous stdDev to stdDev_2
+        localStorage.setItem('vablet_stdDev_1', stdDev);    // Save the current stdDev to stdDev_1
 
         // Calculate the score
         const lapses = clickTimes.filter((time) => typeof time === 'number' && time >= 600).length;
         const falseStarts = newRounds.filter((time) => time === 'False Start').length;
-        const score = Math.round(averageLast10Value * 0.3 + lapses * 10 + falseStarts * 5 + stdDev * 0.2);
+
+        let score = 0
+
+        if (averageLast10Value == "N/A") {
+          score = "Fail"
+          console.log("Score: ", score)
+        } else {
+          score += Math.round(averageLast10Value * 0.3 + lapses * 10 + falseStarts * 5 + stdDev * 0.2);
+          console.log("Score: ", score)
+        }
 
         // Save the score to localStorage
         const savedScores = JSON.parse(localStorage.getItem('reactionTestScores')) || [];
         const updatedScores = [...savedScores, score].slice(-2); // Keep only the last 2 scores
         localStorage.setItem('reactionTestScores', JSON.stringify(updatedScores));
 
-        // Save the most recent score and standard deviation to their respective Vablet entries
         localStorage.setItem('vablet_Score', score);
-        if (updatedScores.length > 1) {
-          localStorage.setItem('vablet_Score_2', updatedScores[updatedScores.length - 2]);
-        }
-        //localStorage.setItem('vablet_stdDev_2', stdDev);
+        localStorage.setItem('vablet_Score_2', updatedScores.length > 1 ? updatedScores[0] : "N/A"); // Handle case with only one score
 
         console.log('Saved results:', trimmedResults); // Log the saved results for debugging
         console.log('Average of last 20 rounds:', average); // Log the average for debugging
@@ -618,7 +660,7 @@
         const previousResultsHTML = previousResults.length > 0
           ? `
             <h3>Previous Results (Last 20 Rounds)</h3>
-            <p>${previousResults.join(', ')} ms</p>
+            <p>${previousResults.map(r => typeof r === 'number' ? Math.round(r) : r).join(', ')} ms</p>
             <p>Average of last 20 rounds: ${average} ms</p>
             <p>Standard Deviation of last 20 rounds: ${stdDev} ms</p>
             <h3>Last Two Scores</h3>
@@ -633,7 +675,7 @@
       function assignScoresToInputs() {
         // Retrieve the last 20 rounds from localStorage
         const trimmedResults = JSON.parse(
-          localStorage.getItem('reactionTrimmedResults')
+          localStorage.getItem('reactionTrimmedResults') || '[]'
         );
 
         // Assign scores to the form inputs
@@ -643,21 +685,24 @@
         }
 
         // Set the average score in the form
-        const average =
-          JSON.parse(localStorage.getItem('reactionTestAverage')) || 0; // Default to 0 if missing
-        document.querySelector('input[name="vablet_Time_Avg"]').value = average;
+        const average = localStorage.getItem('reactionTestAverage');
+        document.querySelector('input[name="vablet_Time_Avg"]').value =
+          average !== 'N/A' ? JSON.parse(average) : 0; // Handle "N/A" case
+
         // Set the distraction status in the form
         document.querySelector('input[name="vablet_Distracted"]').value =
-          localStorage.getItem('vablet_Distracted');
+          localStorage.getItem('vablet_Distracted') || '';
 
         // Set the standard deviations in the form
-        const stdDev1 = JSON.parse(localStorage.getItem('vablet_stdDev_1')) || 0; // Default to 0 if missing
-        const stdDev2 = JSON.parse(localStorage.getItem('vablet_stdDev_2')) || 0; // Default to 0 if missing
-        document.querySelector('input[name="vablet_stdDev_1"]').value = stdDev1;
-        document.querySelector('input[name="vablet_stdDev_2"]').value = stdDev2;
+        const stdDev1 = localStorage.getItem('vablet_stdDev_1');
+        const stdDev2 = localStorage.getItem('vablet_stdDev_2');
+        document.querySelector('input[name="vablet_stdDev_1"]').value =
+          stdDev1 !== 'N/A' ? JSON.parse(stdDev1) : 0; // Handle "N/A" case
+        document.querySelector('input[name="vablet_stdDev_2"]').value =
+          stdDev2 !== 'N/A' ? JSON.parse(stdDev2) : 0; // Handle "N/A" case
 
         // Set the scores in the form
-        const savedScores = JSON.parse(localStorage.getItem('reactionTestScores')) || []; // Retrieve the last two scores
+        const savedScores = JSON.parse(localStorage.getItem('reactionTestScores') || '[]'); // Retrieve the last two scores
         const score = savedScores.length > 0 ? savedScores[savedScores.length - 1] : 0; // Default to 0 if missing
         const score2 = savedScores.length > 1 ? savedScores[savedScores.length - 2] : 0; // Default to 0 if missing
         document.querySelector('input[name="vablet_Score"]').value = score;
@@ -680,6 +725,12 @@
         } catch (error) {
           console.log('Error: ', error);
         }
+      }
+
+      function resetLocalStorage() {
+        localStorage.clear(); // Clear all localStorage data
+        console.log('LocalStorage data has been reset.');
+        document.getElementById('resetButton').style.display = 'none'; // Hide the reset button
       }
 
       // Call this function when the page loads
